@@ -1,140 +1,107 @@
-create database bankM;
-use bankM;
+-- =================================================================================================
+-- BANK MANAGEMENT SYSTEM (Advanced SQL Implementation)
+-- Author: Gaurav
+-- Date: 2025-07-14
+-- Version: 2.0
+-- =================================================================================================
+-- OVERVIEW:
+-- This SQL script implements a fully functional, real-world inspired **Bank Management System**
+-- with automation using Triggers, Procedures, and Constraints.
+-- It demonstrates:
+--     1. Database normalization principles (3NF)
+--     2. Referential integrity with FOREIGN KEYS
+--     3. Business logic enforcement via CHECK constraints
+--     4. Automation with AFTER UPDATE & AFTER INSERT TRIGGERS
+--     5. Stored Procedures for reporting and operations
+--     6. Sample queries for analysis
+--
+-- TABLES:
+--     1. Account_opening_form  --> Captures customer application details
+--     2. BANK                  --> Maintains account core details
+--     3. ACCOUNT_HOLDER_DETAILS--> Stores personal info of approved customers
+--     4. TRANSACTION_DETAILS   --> Transaction history
+--
+-- BUSINESS RULES:
+--     - Aadhar Number must be unique (national identity verification)
+--     - Minimum opening balance for Savings account: 1000 INR
+--     - KYC approval is mandatory before account activation
+--     - All account numbers auto-generate sequentially starting from 10000
+--     - Transactions auto-update current balance
+--     - DEBIT cannot exceed current balance (business safety rule)
+--
+-- EXTRA FEATURES:
+--     - INDEXES for faster lookups
+--     - PROCEDURE for monthly passbook
+--     - FUNCTION to get account balance instantly
+--     - SAMPLE REPORT queries for analytics
+-- =================================================================================================
 
--------------------------------------BANK MANAGEMENT PROJECT-----------------------------------------
-/*
+-- =============================
+-- 1. DATABASE CREATION
+-- =============================
+CREATE DATABASE bankM;
+USE bankM;
 
-		-----------BACKEND BANKING SYSTEM PROJECT (DATA ANALYST)--------------
-
-		1. REAL LIFE EXAMPLE INVOLVING TRIGGERS, STORED PROCEDURES AND FUNCTIONS.
-		2. IN TOTAL WE WILL BE HAVING 4 TABLES
-
-		TABLES:		
-			1. Account_opening_form
-			   (
-			   ID : PK (TO TRACK RECORDS) 
-
-			   DATE: BY DEFAULT IT SHOULD BE THE CURRENT DATE OF ACC OPENING 
-
-			   ACCOUNT_TYPE: (SAVINGS - DEFAULT, CURRENT) 
-
-			   ACCOUNT_HOLDER_NAME: NAME OF ACCOUNT HOLDER 
-
-			   DOB: DATE OF BIRTH 
-
-			   AADHAR_NUMBER: (CANNOT BE REPEATED) - CAN HOLD MAX 12 NUMBERS 
-
-			   MOBILE_NUMBER: CAN HOLD MAX 15 NUMBERS 
-
-			   ACCOUNT_OPENING_BALANCE: DECIMAL DATA TYPE SHOULD BE ALLOWED ONLY - MINIMUM AMOUNT SHOULD BE 1000
-
-			   ADDRESS: ADDRESS OF ACCOUNT HOLDER 
-
-			   KYC_STATUS: APPROVED, PENDING (BY DEFAULT), REJECTED
-			   )
-
-
-			
-			2. BANK
-			   (
-			   ACCOUNT_NUMBER: GENERATED AUTOMATICALLY AFTER KYC_STATUS IN Account_opening_form TABLE IS SET TO 'APPROVED'
-
-			   ACCOUNT_TYPE: AUTOMATICALLY INSERTED AFTER ONLY KYC_STATUS IS APPROVED
-
-			   ACCOUNT_OPENING_DATE: AUTOMATICALLY INSERTED AFTER ONLY KYC_STATUS IS APPROVED
-
-			   CURRENT_BALANCE: AUTOMATICALLY INSERTED AFTER ONLY KYC_STATUS IS APPROVED + IT WILL BE UPDATED BASED UPON THE 
-								TRANSACTION_DETAILS TABLE.
-			   )
-
-
-
-			3. ACCOUNT_HOLDER_DETAILS
-			   (
-			   ACCOUNT_NUMBER: GENERATED AUTOMATICALLY AFTER KYC_STATUS IN Account_opening_form TABLE IS 'APPROVED'
-
-			   ACCOUNT_HOLDER_NAME: AUTOMATICALLY INSERTED FROM Account_opening_form TABLE AFTER ONLY KYC_STATUS IS APPROVED
-
-			   DOB: AUTOMATICALLY INSERTED FROM Account_opening_form TABLE AFTER ONLY KYC_STATUS IS APPROVED 
-
-			   AADHAR_NUMBER: AUTOMATICALLY INSERTED FROM Account_opening_form TABLE AFTER ONLY KYC_STATUS IS APPROVED 
-
-			   MOBILE_NUMBER: AUTOMATICALLY INSERTED FROM Account_opening_form TABLE AFTER ONLY KYC_STATUS IS APPROVED
-			   )
-
-			4. TRANSACTION_DETAILS
-			   (
-			   ACCOUNT_NUMBER:
-			   
-			   PAYMENT_TYPE, 
-
-			   TRANSACTION_AMOUNT,
-			   
-			   DATE_OF_TRANSACTION
-			   )
-
-*/
+-- =============================
+-- 2. TABLE: Account_opening_form
+-- =============================
 CREATE TABLE Account_opening_form (
     ID INT PRIMARY KEY,
     DATE DATE DEFAULT GETDATE(),
-    ACCOUNT_TYPE VARCHAR(20) DEFAULT 'SAVINGS',
+    ACCOUNT_TYPE VARCHAR(20) DEFAULT 'SAVINGS' CHECK (ACCOUNT_TYPE IN ('SAVINGS', 'CURRENT')),
     ACCOUNT_HOLDER_NAME VARCHAR(100) NOT NULL,
     DOB DATE NOT NULL,
-    AADHAR_NUMBER VARCHAR(12) NOT NULL Unique,
-    MOBILE_NUMBER VARCHAR(15) NOT NULL Unique,
+    AADHAR_NUMBER VARCHAR(12) NOT NULL UNIQUE,
+    MOBILE_NUMBER VARCHAR(15) NOT NULL UNIQUE,
     ACCOUNT_OPENING_BALANCE DECIMAL(10,2) CHECK (ACCOUNT_OPENING_BALANCE >= 1000),
-    ADDRESS1 VARCHAR(255),
-    KYC_STATUS VARCHAR(20) DEFAULT 'PENDING'
+    ADDRESS1 VARCHAR(255) NOT NULL,
+    KYC_STATUS VARCHAR(20) DEFAULT 'PENDING' CHECK (KYC_STATUS IN ('PENDING', 'APPROVED', 'REJECTED'))
 );
-DROP TABLE TRANSACTION_DETAILS
 
+-- Index for quick aadhar lookups
+CREATE INDEX idx_aadhar ON Account_opening_form (AADHAR_NUMBER);
+
+-- =============================
+-- 3. TABLE: BANK
+-- =============================
 CREATE TABLE BANK (
     ACCOUNT_NUMBER INT IDENTITY(10000,1) PRIMARY KEY,
     ACCOUNT_TYPE VARCHAR(20),
     ACCOUNT_OPENING_DATE DATE,
-    CURRENT_BALANCE DECIMAL(10,2)
+    CURRENT_BALANCE DECIMAL(10,2) CHECK (CURRENT_BALANCE >= 0)
 );
 
+-- =============================
+-- 4. TABLE: ACCOUNT_HOLDER_DETAILS
+-- =============================
 CREATE TABLE ACCOUNT_HOLDER_DETAILS (
     ACCOUNT_NUMBER INT PRIMARY KEY,
-    ACCOUNT_HOLDER_NAME VARCHAR(100),
-    DOB DATE,
-    AADHAR_NUMBER VARCHAR(12) UNIQUE,
-    MOBILE_NUMBER VARCHAR(15),
+    ACCOUNT_HOLDER_NAME VARCHAR(100) NOT NULL,
+    DOB DATE NOT NULL,
+    AADHAR_NUMBER VARCHAR(12) UNIQUE NOT NULL,
+    MOBILE_NUMBER VARCHAR(15) NOT NULL,
+    FOREIGN KEY (ACCOUNT_NUMBER) REFERENCES BANK(ACCOUNT_NUMBER)
 );
-DROP TABLE Account_opening_form
 
+-- =============================
+-- 5. TABLE: TRANSACTION_DETAILS
+-- =============================
 CREATE TABLE TRANSACTION_DETAILS (
-    ACCOUNT_NUMBER INT,
-    PAYMENT_TYPE VARCHAR(20),
-    TRANSACTION_AMOUNT DECIMAL(10,2),
+    TRANSACTION_ID INT IDENTITY(1,1) PRIMARY KEY,
+    ACCOUNT_NUMBER INT NOT NULL,
+    PAYMENT_TYPE VARCHAR(20) CHECK (PAYMENT_TYPE IN ('DEBIT', 'CREDIT')),
+    TRANSACTION_AMOUNT DECIMAL(10,2) CHECK (TRANSACTION_AMOUNT > 0),
     DATE_OF_TRANSACTION DATE DEFAULT GETDATE(),
     FOREIGN KEY (ACCOUNT_NUMBER) REFERENCES BANK(ACCOUNT_NUMBER)
 );
 
-select* from Account_opening_form
-select* from BANK
-select* from ACCOUNT_HOLDER_DETAILS
-select* from TRANSACTION_DETAILS
+-- Index for transaction history lookups
+CREATE INDEX idx_txn_account_date ON TRANSACTION_DETAILS (ACCOUNT_NUMBER, DATE_OF_TRANSACTION);
 
---CREATE TRIGGER TR_FOR_INSERT_INTO_ACC_OPENING_FORM
---ON ACCOUNT_OPENING_FORM
---AFTER
---AS
---BEGIN
---	DECLARE @STATUS
-
-
---END
-
-
---UPDATE ACCOUT_OPENING
---SET KYC_STATUS=='APPROVED'
---WHERE ADHAR_NUMBER=345677777;
-
-
-
-Create TRIGGER TR_FOR_INSERT_INTO_ACC_OPENING_FORM
+-- =============================
+-- 6. TRIGGER: Auto-create account upon KYC approval
+-- =============================
+CREATE TRIGGER TR_FOR_INSERT_INTO_ACC_OPENING_FORM
 ON Account_opening_form
 AFTER UPDATE
 AS
@@ -158,22 +125,19 @@ BEGIN
 
     IF @status = 'APPROVED'
     BEGIN
+        -- Insert into BANK
         INSERT INTO BANK (ACCOUNT_TYPE, ACCOUNT_OPENING_DATE, CURRENT_BALANCE)
         VALUES (@Account_type, GETDATE(), @Account_opening_balance);
 
+        -- Insert into ACCOUNT_HOLDER_DETAILS
         INSERT INTO ACCOUNT_HOLDER_DETAILS (ACCOUNT_NUMBER, ACCOUNT_HOLDER_NAME, DOB, AADHAR_NUMBER, MOBILE_NUMBER)
         VALUES (@@IDENTITY, @Account_HolderName, @DOB, @AadharNumber, @MobileNumber);
     END;
 END;
 
-
-
-INSERT INTO Account_opening_form (ID, ACCOUNT_HOLDER_NAME, DOB, AADHAR_NUMBER, MOBILE_NUMBER, ACCOUNT_OPENING_BALANCE, ADDRESS1)
-VALUES (2, 'YAH DHIMAN', '1988-01-01', '12345678012', '790661397', 1500, 'cu');
-
-
-SELECT * FROM Account_opening_form 
-
+-- =============================
+-- 7. TRIGGER: Auto-update balance on transaction
+-- =============================
 CREATE TRIGGER TR_UPDATE_BALANCE
 ON TRANSACTION_DETAILS
 AFTER INSERT
@@ -187,6 +151,16 @@ BEGIN
            @TransactionAmount = TRANSACTION_AMOUNT,
            @PaymentType = PAYMENT_TYPE
     FROM inserted;
+
+    -- Prevent overdraft
+    IF @PaymentType = 'DEBIT' AND EXISTS (
+        SELECT 1 FROM BANK WHERE ACCOUNT_NUMBER = @AccountNumber AND CURRENT_BALANCE < @TransactionAmount
+    )
+    BEGIN
+        RAISERROR('Insufficient funds for this transaction.', 16, 1);
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END
 
     IF @PaymentType = 'DEBIT'
     BEGIN
@@ -202,29 +176,70 @@ BEGIN
     END;
 END;
 
+-- =============================
+-- 8. FUNCTION: Get Account Balance
+-- =============================
+CREATE FUNCTION fn_get_balance (@AccountNumber INT)
+RETURNS DECIMAL(10,2)
+AS
+BEGIN
+    DECLARE @balance DECIMAL(10,2);
+    SELECT @balance = CURRENT_BALANCE FROM BANK WHERE ACCOUNT_NUMBER = @AccountNumber;
+    RETURN @balance;
+END;
 
+-- =============================
+-- 9. PROCEDURE: Monthly Passbook
+-- =============================
+CREATE PROCEDURE sp_passbook
+    @AccountNumber INT,
+    @Month INT,
+    @Year INT
+AS
+BEGIN
+    SELECT TRANSACTION_ID, PAYMENT_TYPE, TRANSACTION_AMOUNT, DATE_OF_TRANSACTION
+    FROM TRANSACTION_DETAILS
+    WHERE ACCOUNT_NUMBER = @AccountNumber
+      AND MONTH(DATE_OF_TRANSACTION) = @Month
+      AND YEAR(DATE_OF_TRANSACTION) = @Year
+    ORDER BY DATE_OF_TRANSACTION;
+END;
 
-INSERT INTO TRANSACTION_DETAILS (ACCOUNT_NUMBER, PAYMENT_TYPE, TRANSACTION_AMOUNT)
-VALUES (100001, 'DEBIT', 500.0);
+-- =============================
+-- 10. SAMPLE DATA INSERTION
+-- =============================
+INSERT INTO Account_opening_form (ID, ACCOUNT_HOLDER_NAME, DOB, AADHAR_NUMBER, MOBILE_NUMBER, ACCOUNT_OPENING_BALANCE, ADDRESS1)
+VALUES (1, 'Gaurav Sharma', '1990-01-01', '123456789012', '9876543210', 1500, 'Mohali');
 
-INSERT INTO TRANSACTION_DETAILS (ACCOUNT_NUMBER, PAYMENT_TYPE, TRANSACTION_AMOUNT)
-VALUES 
-(10000, 'DEBIT', 500);
+INSERT INTO Account_opening_form (ID, ACCOUNT_HOLDER_NAME, DOB, AADHAR_NUMBER, MOBILE_NUMBER, ACCOUNT_OPENING_BALANCE, ADDRESS1)
+VALUES (2, 'Rahul Mehta', '1985-07-20', '987654321098', '9876543211', 2500, 'Chandigarh');
 
-INSERT INTO TRANSACTION_DETAILS (ACCOUNT_NUMBER, PAYMENT_TYPE, TRANSACTION_AMOUNT)
-VALUES 
-(10000, 'CREDIT', 1000),
-(10002, 'CREDIT', 800);
-
+-- Approve accounts
 UPDATE Account_opening_form
 SET KYC_STATUS = 'APPROVED'
 WHERE ID IN (1, 2);
 
+-- Transactions
+INSERT INTO TRANSACTION_DETAILS (ACCOUNT_NUMBER, PAYMENT_TYPE, TRANSACTION_AMOUNT)
+VALUES (10000, 'DEBIT', 500);
 
-create procedure sp_passbook
-@month
-as 
-begin
-end
-select dateadd(month,-4,getdate())
-slect gatedate()
+INSERT INTO TRANSACTION_DETAILS (ACCOUNT_NUMBER, PAYMENT_TYPE, TRANSACTION_AMOUNT)
+VALUES (10000, 'CREDIT', 1000), (10001, 'CREDIT', 800);
+
+-- =============================
+-- 11. SAMPLE REPORT QUERIES
+-- =============================
+-- a) Get top 5 accounts by balance
+SELECT TOP 5 ACCOUNT_NUMBER, CURRENT_BALANCE
+FROM BANK
+ORDER BY CURRENT_BALANCE DESC;
+
+-- b) Get total credits and debits per account
+SELECT ACCOUNT_NUMBER,
+       SUM(CASE WHEN PAYMENT_TYPE = 'CREDIT' THEN TRANSACTION_AMOUNT ELSE 0 END) AS Total_Credit,
+       SUM(CASE WHEN PAYMENT_TYPE = 'DEBIT' THEN TRANSACTION_AMOUNT ELSE 0 END) AS Total_Debit
+FROM TRANSACTION_DETAILS
+GROUP BY ACCOUNT_NUMBER;
+
+-- c) Get account balance using function
+SELECT dbo.fn_get_balance(10000) AS Balance_For_Account_10000;
