@@ -1,103 +1,99 @@
-# Bank Management System
+# Bank Management System (SQL Server)
 
-A comprehensive backend banking system implemented in SQL Server that demonstrates the use of triggers, stored procedures, and functions for managing bank accounts and transactions.
+A fully functional backend banking system implemented in **SQL Server**, demonstrating the use of **triggers**, **stored procedures**, and **user-defined functions** to handle account creation, KYC verification, and transaction processing.
 
-## Database Schema
+---
 
-The system consists of four main tables:
+## 📌 Overview
+This project simulates core banking operations:
+- Account creation with KYC verification
+- Transaction handling (credit and debit)
+- Automated balance updates
+- Transaction history logging
+- Relational database design with constraints and automation
 
-### 1. Account_opening_form
-- Primary table for new account applications
-- Fields:
-  - `ID` (Primary Key)
-  - `DATE` (Default: Current date)
-  - `ACCOUNT_TYPE` (Default: 'SAVINGS')
-  - `ACCOUNT_HOLDER_NAME`
-  - `DOB` (Date of Birth)
-  - `AADHAR_NUMBER` (Unique, 12 digits)
-  - `MOBILE_NUMBER` (Unique, 15 digits)
-  - `ACCOUNT_OPENING_BALANCE` (Minimum: 1000)
-  - `ADDRESS1`
-  - `KYC_STATUS` (Default: 'PENDING')
+---
 
-### 2. BANK
-- Stores active bank accounts
-- Fields:
-  - `ACCOUNT_NUMBER` (Auto-generated, starts from 10000)
-  - `ACCOUNT_TYPE`
-  - `ACCOUNT_OPENING_DATE`
-  - `CURRENT_BALANCE`
+## 🗄 Database Schema
 
-### 3. ACCOUNT_HOLDER_DETAILS
-- Stores account holder information
-- Fields:
-  - `ACCOUNT_NUMBER` (Primary Key)
-  - `ACCOUNT_HOLDER_NAME`
-  - `DOB`
-  - `AADHAR_NUMBER` (Unique)
-  - `MOBILE_NUMBER`
+The system consists of **four main tables**:
 
-### 4. TRANSACTION_DETAILS
-- Records all transactions
-- Fields:
-  - `ACCOUNT_NUMBER` (Foreign Key)
-  - `PAYMENT_TYPE`
-  - `TRANSACTION_AMOUNT`
-  - `DATE_OF_TRANSACTION` (Default: Current date)
+### 1. `Account_opening_form`
+Stores new account applications before approval.
 
-## Key Features
+| Field | Type | Notes |
+|-------|------|-------|
+| ID | INT (PK) | Unique application ID |
+| DATE | DATE | Default: Current Date |
+| ACCOUNT_TYPE | VARCHAR | Default: 'SAVINGS' |
+| ACCOUNT_HOLDER_NAME | VARCHAR | - |
+| DOB | DATE | Date of Birth |
+| AADHAR_NUMBER | CHAR(12) | Unique |
+| MOBILE_NUMBER | CHAR(15) | Unique |
+| ACCOUNT_OPENING_BALANCE | DECIMAL | Minimum: 1000 |
+| ADDRESS1 | VARCHAR | - |
+| KYC_STATUS | VARCHAR | Default: 'PENDING' |
 
-### Automatic Account Creation
-- Trigger `TR_FOR_INSERT_INTO_ACC_OPENING_FORM` automatically creates bank accounts when KYC status is approved
-- Generates account numbers sequentially starting from 10000
-- Copies relevant information to BANK and ACCOUNT_HOLDER_DETAILS tables
+---
 
-### Transaction Management
-- Trigger `TR_UPDATE_BALANCE` automatically updates account balances on transactions
-- Supports both DEBIT and CREDIT transactions
-- Maintains transaction history with timestamps
+### 2. `BANK`
+Stores active, approved bank accounts.
 
-## Usage
+| Field | Type | Notes |
+|-------|------|-------|
+| ACCOUNT_NUMBER | INT (PK) | Auto-generated, starts from 10000 |
+| ACCOUNT_TYPE | VARCHAR | - |
+| ACCOUNT_OPENING_DATE | DATE | - |
+| CURRENT_BALANCE | DECIMAL | - |
 
-1. Create a new account application:
+---
+
+### 3. `ACCOUNT_HOLDER_DETAILS`
+Stores account holder personal information.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| ACCOUNT_NUMBER | INT (PK, FK) | Linked to BANK |
+| ACCOUNT_HOLDER_NAME | VARCHAR | - |
+| DOB | DATE | - |
+| AADHAR_NUMBER | CHAR(12) | Unique |
+| MOBILE_NUMBER | CHAR(15) | Unique |
+
+---
+
+### 4. `TRANSACTION_DETAILS`
+Logs all transactions.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| ACCOUNT_NUMBER | INT (FK) | Linked to BANK |
+| PAYMENT_TYPE | VARCHAR | 'DEBIT' / 'CREDIT' |
+| TRANSACTION_AMOUNT | DECIMAL | - |
+| DATE_OF_TRANSACTION | DATE | Default: Current Date |
+
+---
+
+## ⚙️ Core Features
+
+### 🔹 Automatic Account Creation
+- Trigger: **`TR_FOR_INSERT_INTO_ACC_OPENING_FORM`**
+- Executes when KYC is approved.
+- Auto-generates account numbers sequentially from **10000**.
+- Inserts details into `BANK` and `ACCOUNT_HOLDER_DETAILS`.
+
+### 🔹 Transaction Management
+- Trigger: **`TR_UPDATE_BALANCE`**
+- Updates balances automatically on `TRANSACTION_DETAILS` insert.
+- Supports **DEBIT** and **CREDIT**.
+- Maintains a timestamped transaction log.
+
+---
+
+## 🛠 Usage
+
+### 1️⃣ Create a New Account Application
 ```sql
-INSERT INTO Account_opening_form (ID, ACCOUNT_HOLDER_NAME, DOB, AADHAR_NUMBER, MOBILE_NUMBER, ACCOUNT_OPENING_BALANCE, ADDRESS1)
-VALUES (1, 'Yash Dhiman', '1990-01-01', '123456789012', '9876543210', 1500, 'Mohali');
-```
-
-2. Approve KYC:
-```sql
-UPDATE Account_opening_form
-SET KYC_STATUS = 'APPROVED'
-WHERE ID = 1;
-```
-
-3. Perform transactions:
-```sql
--- Debit transaction
-INSERT INTO TRANSACTION_DETAILS (ACCOUNT_NUMBER, PAYMENT_TYPE, TRANSACTION_AMOUNT)
-VALUES (10000, 'DEBIT', 500.0);
-
--- Credit transaction
-INSERT INTO TRANSACTION_DETAILS (ACCOUNT_NUMBER, PAYMENT_TYPE, TRANSACTION_AMOUNT)
-VALUES (10000, 'CREDIT', 1000.0);
-```
-
-## Requirements
-- SQL Server Management Studio
-- SQL Server 2012 or later
-
-## Setup
-1. Create the database:
-```sql
-create database bankM;
-use bankM;
-```
-
-2. Execute the provided SQL script to create all tables and triggers
-
-## Notes
-- Minimum account opening balance: 1000
-- Account numbers are auto-generated starting from 10000
-- KYC approval is required before account activation
-- All transactions are automatically timestamped
+INSERT INTO Account_opening_form 
+(ID, ACCOUNT_HOLDER_NAME, DOB, AADHAR_NUMBER, MOBILE_NUMBER, ACCOUNT_OPENING_BALANCE, ADDRESS1)
+VALUES 
+(1, 'Gaurav', '1990-01-01', '123456789012', '9876543210', 1500, 'Mohali');
